@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Controle de Cartão iOS</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        ios: {
+                            bg: '#F2F2F7',
+                            card: '#FFFFFF',
+                            darkBg: '#000000',
+                            darkCard: '#1C1C1E',
+                            blue: '#007AFF',
+                            green: '#34C759',
+                            red: '#FF3B30',
+                            orange: '#FF9500',
+                            purple: '#AF52DE',
+                            gray: '#8E8E93',
+                            grayLight: '#E5E5EA',
+                            darkGray: '#2C2C2E'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        input, select, textarea {
+            user-select: auto;
+        }
+        .glass-header {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(142, 142, 147, 0.3);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-ios-bg dark:bg-ios-darkBg text-slate-900 dark:text-slate-100 font-sans antialiased h-full flex flex-col justify-between selection:bg-ios-blue selection:text-white pb-safe">
+
+    <!-- Container Principal do App -->
+    <div id="app" class="max-w-md mx-auto w-full h-full flex flex-col flex-1 shadow-2xl relative overflow-hidden bg-ios-bg dark:bg-ios-darkBg">
+
+        <!-- Top Header Bar -->
+        <header class="sticky top-0 z-30 glass-header bg-ios-bg/80 dark:bg-ios-darkBg/80 pt-10 pb-3 px-5 border-b border-gray-200/50 dark:border-zinc-800/50 flex justify-between items-center">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-ios-gray">Meu Cartão</span>
+                <h1 class="text-2xl font-bold tracking-tight">Controle de Limite</h1>
+            </div>
+            <div class="flex items-center space-x-2">
+                <!-- Toggle Tema Claro/Escuro -->
+                <button id="themeToggleBtn" onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-ios-card dark:bg-ios-darkCard shadow-sm flex items-center justify-center text-ios-gray hover:text-ios-blue transition">
+                    <i class="fa-solid fa-moon text-lg dark:hidden"></i>
+                    <i class="fa-solid fa-sun text-lg hidden dark:block text-amber-400"></i>
+                </button>
+                <!-- Editar Limite Total -->
+                <button onclick="openModal('limitModal')" class="w-10 h-10 rounded-full bg-ios-card dark:bg-ios-darkCard shadow-sm flex items-center justify-center text-ios-blue hover:scale-105 transition">
+                    <i class="fa-solid fa-sliders text-lg"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Conteúdo Principal -->
+        <main class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+
+            <!-- Card do Cartão de Crédito -->
+            <div class="relative overflow-hidden rounded-3xl p-6 text-white shadow-xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-white/10">
+                <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-ios-blue/30 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -left-10 -top-10 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="flex justify-between items-start mb-5">
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold tracking-wider uppercase">CARTÃO DE CRÉDITO</p>
+                        <p class="text-xs font-semibold tracking-wide text-slate-200 mt-0.5">Santander Black</p>
+                    </div>
+                    <i class="fa-brands fa-cc-visa text-3xl opacity-80"></i>
+                </div>
+
+                <div class="mb-4">
+                    <p class="text-xs text-slate-400 font-medium">Limite Disponível</p>
+                    <p id="cardAvailableLimit" class="text-3xl font-extrabold tracking-tight mt-0.5 text-emerald-400">R$ 0,00</p>
+                </div>
+
+                <!-- Progresso do Limite Total -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs text-slate-300 font-medium">
+                        <span id="limitPercentageText">0% do limite total usado</span>
+                        <span id="cardTotalSpentText">Usado: R$ 0,00</span>
+                    </div>
+                    <div class="w-full bg-slate-800/80 rounded-full h-2.5 overflow-hidden p-0.5 border border-white/5">
+                        <div id="progressBar" class="bg-ios-green h-full rounded-full transition-all duration-500 w-0"></div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-white/10 flex justify-between items-center text-xs text-slate-400">
+                    <span>Limite Total: <strong id="cardTotalLimit" class="text-white font-semibold">R$ 0,00</strong></span>
+                    <button onclick="openModal('limitModal')" class="text-ios-blue hover:underline text-xs flex items-center gap-1 font-semibold">
+                        Ajustar <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Navegador de Faturas Mês a Mês -->
+            <div class="bg-ios-card dark:bg-ios-darkCard rounded-2xl p-3 shadow-sm border border-gray-200/60 dark:border-zinc-800/80 flex justify-between items-center">
+                <button onclick="changeMonth(-1)" class="w-9 h-9 rounded-xl bg-ios-bg dark:bg-ios-darkBg text-ios-blue flex items-center justify-center hover:bg-ios-grayLight dark:hover:bg-zinc-700 transition">
+                    <i class="fa-solid fa-chevron-left text-sm"></i>
+                </button>
+                
+                <div class="text-center">
+                    <span class="text-[10px] text-ios-gray font-bold uppercase tracking-wider block">Fatura do Mês</span>
+                    <h2 id="currentMonthLabel" class="text-base font-bold text-slate-900 dark:text-white capitalize">Mês Ano</h2>
+                </div>
+
+                <button onclick="changeMonth(1)" class="w-9 h-9 rounded-xl bg-ios-bg dark:bg-ios-darkBg text-ios-blue flex items-center justify-center hover:bg-ios-grayLight dark:hover:bg-zinc-700 transition">
+                    <i class="fa-solid fa-chevron-right text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Card da Fatura do Mês (Destaque para Pagamento) -->
+            <div class="bg-ios-card dark:bg-ios-darkCard rounded-3xl p-5 shadow-sm border border-gray-200/60 dark:border-zinc-800/80 space-y-3">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-semibold text-ios-gray">Valor Total da Fatura</p>
+                        <h3 id="monthInvoiceTotal" class="text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5">R$ 0,00</h3>
+                    </div>
+                    <span id="invoiceStatusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-500">
+                        Pendente
+                    </span>
+                </div>
+
+                <!-- Botão Copiar Valor da Fatura -->
+                <button onclick="copyInvoiceValue()" class="w-full bg-ios-bg dark:bg-ios-darkBg hover:bg-ios-grayLight dark:hover:bg-zinc-800 text-slate-900 dark:text-white border border-gray-200/80 dark:border-zinc-700 font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 transition active:scale-[0.98]">
+                    <i class="fa-regular fa-copy text-ios-blue"></i>
+                    <span>Copiar Valor da Fatura para o Banco</span>
+                </button>
+            </div>
+
+            <!-- Seção Chave Pix Copia e Cola (Banco Santander) -->
+            <div class="bg-ios-card dark:bg-ios-darkCard rounded-3xl p-5 shadow-sm border border-gray-200/60 dark:border-zinc-800/80 space-y-3">
+                <div class="flex items-center space-x-2 text-xs font-bold text-slate-900 dark:text-white">
+                    <i class="fa-brands fa-pix text-emerald-500 text-base"></i>
+                    <span>Pagar Fatura via Pix Copia e Cola</span>
+                </div>
+
+                <!-- Box exibindo o código Pix -->
+                <div class="bg-ios-bg dark:bg-ios-darkBg p-3 rounded-2xl border border-gray-200/60 dark:border-zinc-800/80 text-[11px] font-mono text-ios-gray break-all select-all leading-tight max-h-16 overflow-y-auto">
+                    00020126580014br.gov.bcb.pix013645471a5d-d298-4f7c-aa91-acb562e23fbe5204000053039865802BR5921BANCO SANTANDER S. A.6009SAO PAULO62260522MP0033302666000090743063046F7E
+                </div>
+
+                <!-- Botão Copiar Chave Pix -->
+                <button onclick="copyPixKey()" class="w-full bg-emerald-500 active:bg-emerald-600 text-white font-bold py-3 px-4 rounded-2xl shadow-md shadow-emerald-500/20 text-xs flex items-center justify-center space-x-2 transition transform active:scale-[0.98]">
+                    <i id="pixCopyIcon" class="fa-regular fa-copy"></i>
+                    <span id="pixCopyText">Copiar Chave Pix Santander</span>
+                </button>
+            </div>
+
+            <!-- Botão Adicionar Compra -->
+            <button onclick="openModal('transactionModal')" class="w-full bg-ios-blue active:bg-blue-600 text-white font-semibold py-3.5 px-4 rounded-2xl shadow-lg shadow-ios-blue/25 flex items-center justify-center space-x-2 text-sm transition transform active:scale-[0.98]">
+                <i class="fa-solid fa-plus text-base"></i>
+                <span>Adicionar Nova Compra</span>
+            </button>
+
+            <!-- Lista de Compras da Fatura Selecionada -->
+            <div class="space-y-3 pt-1">
+                <div class="flex justify-between items-center px-1">
+                    <h2 class="text-base font-bold tracking-tight">Lançamentos do Mês</h2>
+                    
+                    <button onclick="togglePayCurrentMonth()" id="payMonthBtn" class="text-xs font-semibold text-ios-blue hover:underline flex items-center gap-1">
+                        <i class="fa-solid fa-check-double"></i> Quitar Mês
+                    </button>
+                </div>
+
+                <div id="transactionList" class="bg-ios-card dark:bg-ios-darkCard rounded-2xl shadow-sm border border-gray-200/60 dark:border-zinc-800/80 divide-y divide-gray-100 dark:divide-zinc-800 overflow-hidden">
+                    <!-- Itens inseridos via JS -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL 1: Ajustar Limite Total -->
+    <div id="limitModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-ios-card dark:bg-ios-darkCard w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 space-y-4 shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold">Definir Limite Total</h3>
+                <button onclick="closeModal('limitModal')" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-zinc-800 text-ios-gray flex items-center justify-center text-sm font-bold">✕</button>
+            </div>
+            
+            <form onsubmit="saveTotalLimit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-ios-gray mb-1">Novo Limite Total do Cartão (R$)</label>
+                    <input type="number" id="inputTotalLimit" step="0.01" required placeholder="Ex: 3000.00" class="w-full bg-gray-100 dark:bg-zinc-800 border-0 rounded-xl p-3.5 text-base font-semibold focus:ring-2 focus:ring-ios-blue focus:outline-none">
+                </div>
+                <button type="submit" class="w-full bg-ios-blue text-white font-semibold py-3.5 rounded-xl shadow-md active:opacity-90 transition">
+                    Salvar Limite
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Adicionar Compra -->
+    <div id="transactionModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-ios-card dark:bg-ios-darkCard w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 space-y-4 shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold">Nova Compra</h3>
+                <button onclick="closeModal('transactionModal')" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-zinc-800 text-ios-gray flex items-center justify-center text-sm font-bold">✕</button>
+            </div>
+            
+            <form id="addTransactionForm" onsubmit="addTransaction(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-ios-gray mb-1">Descrição</label>
+                    <input type="text" id="transDesc" required placeholder="Ex: Supermercado, Anuidade, Uber..." class="w-full bg-gray-100 dark:bg-zinc-800 border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-ios-blue focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-ios-gray mb-1">Valor Total (R$)</label>
+                        <input type="number" id="transAmount" step="0.01" required placeholder="0,00" class="w-full bg-gray-100 dark:bg-zinc-800 border-0 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-ios-blue focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-ios-gray mb-1">Categoria</label>
+                        <select id="transCategory" class="w-full bg-gray-100 dark:bg-zinc-800 border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-ios-blue focus:outline-none">
+                            <option value="Mercado / Alimentação">Mercado / Alimentação</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Lazer">Lazer</option>
+                            <option value="Saúde">Saúde</option>
+                            <option value="Serviços">Serviços</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-ios-gray mb-1">Parcelas</label>
+                        <select id="transInstallments" class="w-full bg-gray-100 dark:bg-zinc-800 border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-ios-blue focus:outline-none">
+                            <option value="1">1x (À vista)</option>
+                            <option value="2">2x</option>
+                            <option value="3">3x</option>
+                            <option value="4">4x</option>
+                            <option value="5">5x</option>
+                            <option value="6">6x</option>
+                            <option value="7">7x</option>
+                            <option value="8">8x</option>
+                            <option value="9">9x</option>
+                            <option value="10">10x</option>
+                            <option value="11">11x</option>
+                            <option value="12">12x</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-ios-gray mb-1">Data da Compra</label>
+                        <input type="date" id="transDate" required class="w-full bg-gray-100 dark:bg-zinc-800 border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-ios-blue focus:outline-none">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-ios-blue text-white font-semibold py-3.5 rounded-xl shadow-md active:opacity-90 transition mt-2">
+                    Registrar Lançamento
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 text-white px-4 py-2.5 rounded-full shadow-lg text-xs font-semibold flex items-center space-x-2 pointer-events-none opacity-0 transition-all duration-300 transform translate-y-4">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-ios-green"></i>
+        <span id="toastMsg">Mensagem</span>
+    </div>
+
+    <!-- JS Logic -->
+    <script>
+        const PIX_CODE = "00020126580014br.gov.bcb.pix013645471a5d-d298-4f7c-aa91-acb562e23fbe5204000053039865802BR5921BANCO SANTANDER S. A.6009SAO PAULO62260522MP0033302666000090743063046F7E";
+
+        let state = {
+            totalLimit: 3000.00,
+            transactions: [],
+            paidMonths: {}
+        };
+
+        let currentViewDate = new Date();
+
+        const categoryIcons = {
+            'Mercado / Alimentação': { icon: 'fa-utensils', color: 'bg-amber-500/10 text-amber-500' },
+            'Alimentação': { icon: 'fa-utensils', color: 'bg-amber-500/10 text-amber-500' },
+            'Transporte': { icon: 'fa-car', color: 'bg-blue-500/10 text-blue-500' },
+            'Lazer': { icon: 'fa-gamepad', color: 'bg-purple-500/10 text-purple-500' },
+            'Saúde': { icon: 'fa-heart-pulse', color: 'bg-red-500/10 text-red-500' },
+            'Serviços': { icon: 'fa-bolt', color: 'bg-yellow-500/10 text-yellow-500' },
+            'Compras': { icon: 'fa-bag-shopping', color: 'bg-pink-500/10 text-pink-500' },
+            'Outros': { icon: 'fa-receipt', color: 'bg-slate-500/10 text-slate-500' }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+            document.getElementById('transDate').value = new Date().toISOString().split('T')[0];
+            
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+            }
+
+            updateDashboard();
+        });
+
+        function saveToLocalStorage() {
+            localStorage.setItem('card_control_data_v2', JSON.stringify(state));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('card_control_data_v2');
+            if (saved) {
+                try {
+                    state = JSON.parse(saved);
+                    if (!state.paidMonths) state.paidMonths = {};
+                } catch (e) {
+                    console.error("Erro ao carregar dados", e);
+                }
+            }
+        }
+
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        }
+
+        function getMonthKey(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            return `${y}-${m}`;
+        }
+
+        function changeMonth(delta) {
+            currentViewDate.setMonth(currentViewDate.getMonth() + delta);
+            updateDashboard();
+        }
+
+        function getItemsForMonth(monthKey) {
+            const [targetYear, targetMonth] = monthKey.split('-').map(Number);
+            const result = [];
+
+            state.transactions.forEach(trans => {
+                const transDate = new Date(trans.date + 'T00:00:00');
+                const startYear = transDate.getFullYear();
+                const startMonth = transDate.getMonth() + 1;
+
+                const installmentValue = trans.amount / trans.installments;
+
+                for (let i = 0; i < trans.installments; i++) {
+                    let pMonth = startMonth + i;
+                    let pYear = startYear;
+
+                    while (pMonth > 12) {
+                        pMonth -= 12;
+                        pYear += 1;
+                    }
+
+                    if (pYear === targetYear && pMonth === targetMonth) {
+                        result.push({
+                            id: trans.id,
+                            description: trans.description,
+                            category: trans.category,
+                            installmentNumber: i + 1,
+                            totalInstallments: trans.installments,
+                            amount: installmentValue,
+                            originalDate: trans.date
+                        });
+                    }
+                }
+            });
+
+            return result;
+        }
+
+        function updateDashboard() {
+            const monthKey = getMonthKey(currentViewDate);
+            
+            const monthName = currentViewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            document.getElementById('currentMonthLabel').innerText = monthName;
+
+            const monthItems = getItemsForMonth(monthKey);
+            const monthTotal = monthItems.reduce((acc, item) => acc + item.amount, 0);
+
+            document.getElementById('monthInvoiceTotal').innerText = formatCurrency(monthTotal);
+
+            const isPaid = state.paidMonths[monthKey] || false;
+            const badge = document.getElementById('invoiceStatusBadge');
+            const payBtn = document.getElementById('payMonthBtn');
+
+            if (isPaid) {
+                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500";
+                badge.innerText = "Quitada";
+                payBtn.innerText = "Reabrir Mês";
+            } else {
+                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-500";
+                badge.innerText = "Pendente";
+                payBtn.innerText = "Quitar Mês";
+            }
+
+            let totalUnpaidSpent = 0;
+            const allMonthKeys = new Set();
+            state.transactions.forEach(t => {
+                const d = new Date(t.date + 'T00:00:00');
+                for (let i = 0; i < t.installments; i++) {
+                    const temp = new Date(d.getFullYear(), d.getMonth() + i, 1);
+                    allMonthKeys.add(getMonthKey(temp));
+                }
+            });
+
+            allMonthKeys.forEach(mKey => {
+                if (!state.paidMonths[mKey]) {
+                    const items = getItemsForMonth(mKey);
+                    totalUnpaidSpent += items.reduce((acc, item) => acc + item.amount, 0);
+                }
+            });
+
+            const available = state.totalLimit - totalUnpaidSpent;
+            const spentPercentage = state.totalLimit > 0 ? (totalUnpaidSpent / state.totalLimit) * 100 : 0;
+
+            document.getElementById('cardTotalLimit').innerText = formatCurrency(state.totalLimit);
+            document.getElementById('cardAvailableLimit').innerText = formatCurrency(available);
+            document.getElementById('cardTotalSpentText').innerText = `Usado: ${formatCurrency(totalUnpaidSpent)}`;
+            document.getElementById('limitPercentageText').innerText = `${Math.min(spentPercentage, 100).toFixed(0)}% do limite total`;
+
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = `${Math.min(spentPercentage, 100)}%`;
+
+            if (spentPercentage >= 80) {
+                progressBar.className = 'bg-ios-red h-full rounded-full transition-all duration-500';
+            } else if (spentPercentage >= 50) {
+                progressBar.className = 'bg-ios-orange h-full rounded-full transition-all duration-500';
+            } else {
+                progressBar.className = 'bg-ios-green h-full rounded-full transition-all duration-500';
+            }
+
+            const availText = document.getElementById('cardAvailableLimit');
+            if (available < 0) {
+                availText.className = 'text-3xl font-extrabold tracking-tight mt-0.5 text-ios-red';
+            } else {
+                availText.className = 'text-3xl font-extrabold tracking-tight mt-0.5 text-emerald-400';
+            }
+
+            renderTransactions(monthItems);
+        }
+
+        function renderTransactions(monthItems) {
+            const listEl = document.getElementById('transactionList');
+
+            if (monthItems.length === 0) {
+                listEl.innerHTML = `
+                    <div class="p-8 text-center text-ios-gray">
+                        <i class="fa-solid fa-receipt text-3xl mb-2 opacity-40"></i>
+                        <p class="text-xs font-medium">Nenhuma compra nesta fatura.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = monthItems.map(item => {
+                const catInfo = categoryIcons[item.category] || categoryIcons['Outros'];
+                const formattedDate = new Date(item.originalDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+
+                return `
+                    <div class="p-3.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-2xl ${catInfo.color} flex items-center justify-center shrink-0">
+                                <i class="fa-solid ${catInfo.icon} text-base"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs font-bold">${escapeHtml(item.description)}</span>
+                                    ${item.totalInstallments > 1 ? `<span class="text-[10px] bg-ios-gray/10 text-ios-gray px-1.5 py-0.5 rounded-full font-semibold">${item.installmentNumber}/${item.totalInstallments}</span>` : ''}
+                                </div>
+                                <span class="text-[11px] text-ios-gray font-medium">${item.category} • ${formattedDate}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xs font-bold text-slate-900 dark:text-white">
+                                ${formatCurrency(item.amount)}
+                            </span>
+                            <button onclick="deleteTransaction('${item.id}')" title="Excluir Compra" class="w-7 h-7 rounded-full bg-gray-100 dark:bg-zinc-800 text-ios-gray hover:text-ios-red flex items-center justify-center text-xs transition">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function copyInvoiceValue() {
+            const monthKey = getMonthKey(currentViewDate);
+            const monthItems = getItemsForMonth(monthKey);
+            const monthTotal = monthItems.reduce((acc, item) => acc + item.amount, 0);
+
+            const textToCopy = monthTotal.toFixed(2);
+
+            copyToClipboard(textToCopy);
+            showToast(`Valor R$ ${textToCopy} copiado!`);
+        }
+
+        function copyPixKey() {
+            copyToClipboard(PIX_CODE);
+            
+            const btnText = document.getElementById('pixCopyText');
+            const btnIcon = document.getElementById('pixCopyIcon');
+
+            btnText.innerText = "Chave Pix Copiada!";
+            btnIcon.className = "fa-solid fa-check text-white";
+
+            showToast("Chave Pix copiada para a área de transferência!");
+
+            setTimeout(() => {
+                btnText.innerText = "Copiar Chave Pix Santander";
+                btnIcon.className = "fa-regular fa-copy";
+            }, 3000);
+        }
+
+        function copyToClipboard(text) {
+            const tempInput = document.createElement("input");
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+        }
+
+        function togglePayCurrentMonth() {
+            const monthKey = getMonthKey(currentViewDate);
+            state.paidMonths[monthKey] = !state.paidMonths[monthKey];
+            saveToLocalStorage();
+            updateDashboard();
+            showToast(state.paidMonths[monthKey] ? 'Fatura quitada com sucesso!' : 'Fatura reaberta.');
+        }
+
+        function saveTotalLimit(e) {
+            e.preventDefault();
+            const val = parseFloat(document.getElementById('inputTotalLimit').value);
+            if (!isNaN(val) && val >= 0) {
+                state.totalLimit = val;
+                saveToLocalStorage();
+                updateDashboard();
+                closeModal('limitModal');
+                showToast('Limite atualizado!');
+            }
+        }
+
+        function addTransaction(e) {
+            e.preventDefault();
+            const desc = document.getElementById('transDesc').value.trim();
+            const amount = parseFloat(document.getElementById('transAmount').value);
+            const category = document.getElementById('transCategory').value;
+            const installments = parseInt(document.getElementById('transInstallments').value, 10);
+            const date = document.getElementById('transDate').value;
+
+            if (desc && !isNaN(amount) && amount > 0) {
+                const newTrans = {
+                    id: Date.now().toString(),
+                    description: desc,
+                    amount: amount,
+                    category: category,
+                    installments: installments,
+                    date: date
+                };
+
+                state.transactions.push(newTrans);
+                saveToLocalStorage();
+                updateDashboard();
+                closeModal('transactionModal');
+
+                // Reset completo dos campos do formulário para os padrões solicitados
+                document.getElementById('transDesc').value = '';
+                document.getElementById('transAmount').value = '';
+                document.getElementById('transCategory').value = 'Mercado / Alimentação';
+                document.getElementById('transInstallments').value = '1';
+                document.getElementById('transDate').value = new Date().toISOString().split('T')[0];
+
+                showToast('Compra adicionada!');
+            }
+        }
+
+        function deleteTransaction(id) {
+            state.transactions = state.transactions.filter(t => t.id !== id);
+            saveToLocalStorage();
+            updateDashboard();
+            showToast('Lançamento removido.');
+        }
+
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            const content = modal.querySelector('div');
+
+            if (id === 'limitModal') {
+                document.getElementById('inputTotalLimit').value = state.totalLimit;
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('translate-y-full');
+            }, 10);
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            const content = modal.querySelector('div');
+
+            content.classList.add('translate-y-full');
+            modal.classList.add('opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 250);
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+
+            toastMsg.innerText = message;
+            toast.classList.remove('opacity-0', 'translate-y-4');
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+            }, 2200);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+            });
+        }
+    </script>
+</body>
+</html>
